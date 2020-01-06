@@ -1,14 +1,11 @@
-# Azure DevOps PRChangesLogger.py
-(Name subject to change)
-## Creates a list of changed files between branches.
+# Azure DevOps BypassedPRs
+
+## Creates a list of bypassed PRs
 
 ### Dependencies:
-* Python 3.7.1
+* Python 3.8.1
 
 
-### TODO:
-* Modularize
-* Argument handling for terminal operation.
 
-#### Patricio Labin Correa - 03/19
+#### Patricio Labin Correa - 01/20
 ##### MIT License
