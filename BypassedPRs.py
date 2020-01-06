@@ -16,6 +16,7 @@ from azure.devops.connection import Connection
 
 # Other
 from tqdm import tqdm
+import argparse
 
 # Standard library
 import logging
@@ -25,43 +26,48 @@ from collections import namedtuple
 
 
 LOGFILE_NAME = 'bypassedPRs'
+CONFIG_FILE = 'config.json'
+DEFAULT_PULL_QUANTITY = 10000
 
 config_fields = ['access_token', 'organization_url', 'repository_name', 'pull_quantity']
 Config = namedtuple('Config', config_fields, defaults=(None,) * len(config_fields))
 
 
-def setup_logging(logfile_name: str) -> None:
+def setup_logging(logfile_name: str, debug=False) -> None:
     """
     Setups the script logging to a File and the console simultaneously
     """
     # Setup Logging
     root_logger = logging.getLogger()
 
-    # Log File Config
-    file_handler = logging.FileHandler(
-        filename=f'{logfile_name}.log',
-        mode='w',
-        encoding='utf-8'
-    )
+    if debug:
+        # Log File Config
+        file_handler = logging.FileHandler(
+            filename=f'{logfile_name}.log',
+            mode='w',
+            encoding='utf-8'
+        )
 
-    file_handler_formatter = logging.Formatter(
-        fmt='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-        datefmt='%m-%d %H:%M:%S'
-    )
-    file_handler.setFormatter(file_handler_formatter)
-    root_logger.addHandler(file_handler)
-    root_logger.setLevel(logging.DEBUG)
-
+        file_handler_formatter = logging.Formatter(
+            fmt='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+            datefmt='%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(file_handler_formatter)
+        root_logger.addHandler(file_handler)
+        root_logger.setLevel(logging.DEBUG)
+    else:
+        root_logger.setLevel(logging.INFO)
 
     # Console Log Config
     console_logger = logging.StreamHandler()
-    console_logger.setLevel(logging.INFO)
     console_logger.setFormatter(
         logging.Formatter(
             fmt='%(asctime)s %(name)-12s: %(levelname)-8s %(message)s',
             datefmt='%H:%M:%S'
         )
     )
+    console_logger.setLevel(logging.INFO)
+    
     root_logger.addHandler(console_logger)
     logging.info('Azure DevOps Bypassed PRs by @f1r3f0x.')
 
@@ -83,8 +89,8 @@ def get_config(file_path: str) -> Config:
             organization_url = config_file['organization_url'],
             repository_name = config_file['repository_name'],
             pull_quantity = int(config_file['pull_quantity'])
-
         )
+
     except FileNotFoundError as err:
         logging.error('Config file not found')
         if input('Do you want to create a new one? (Y/N) ').strip().lower() == 'y':
@@ -98,18 +104,23 @@ def get_config(file_path: str) -> Config:
                 'organization_url': config.organization_url,
                 'repository_name': config.repository_name,
                 'pull_quantity': DEFAULT_PULL_QUANTITY
-            }, open('config.json', 'w'))
+            }, open(file_path, 'w'))
             logging.info('Config file created')
             return config
+
         else:
             logging.info('Closing...')
             quit(1)
+
     except json.JSONDecodeError as err:
-        logging.error('JSON Decoding Error -', str(err))
+        logging.error(f'JSON Decoding Error: {err}')
+
     except KeyError as err:
-        logging.error('Error in JSON Keys:', str(err))
+        logging.error(f'Error in JSON Keys: {err}')
+
     except ValueError as err:
         logging.error('Pull quantity must be an Int')
+
     quit(1)
 
 
@@ -138,9 +149,14 @@ def get_client(org_url: str, access_token: str) -> AZGit.GitClient:
         return git_client
 
     except MSExceptions.ClientRequestError as err:
-        logging.error('Client Request Error:', str(err))
+        logging.error(f'Client Request Error: {err}')
+
     except MSExceptions.AuthenticationError as err:
-        logging.error('Authentication Error: ', str(err))
+        logging.error(f'Authentication Error: {err}')
+
+    except Exception as err:
+        logging.error(f'Unexpected Error: {err}')
+
     quit(1)
 
 
@@ -151,7 +167,7 @@ def get_repository(git_client: AZGit.GitClient, target_repo_name: str) ->  AZMod
     Args:
         git_client (GitClient): Git Client object
         target_repo_name (str): Repo Name to obtain
-    
+
     Returns
         GitRepository Object
     """
@@ -165,10 +181,16 @@ def get_repository(git_client: AZGit.GitClient, target_repo_name: str) ->  AZMod
     quit(1)
 
 
-if __name__ == "__main__":
-    setup_logging(LOGFILE_NAME)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Hackish script to get a list with bypassed PRs')
+    parser.add_argument('--debug', help='debug mode', action='store_true')
+    args = parser.parse_args()
 
-    config = get_config('my_config.json')
+    setup_logging(LOGFILE_NAME, debug=args.debug)
+
+    if args.debug:
+        CONFIG_FILE = 'debug_config.json'
+    config = get_config(CONFIG_FILE)
     logging.debug(f'Config file: {config}')
 
     git_client = get_client(config.organization_url, config.access_token)
@@ -190,12 +212,12 @@ if __name__ == "__main__":
     for i in range(loops_qty):
         pull_requests = git_client.get_pull_requests(repo_id, search_criteria, top=1000, skip=i*1000)
         pr: AZModels.GitPullRequest
-        
+
         for pr in pull_requests:
             completion_options: AZModels.GitPullRequestCompletionOptions
             completion_options = pr.completion_options
             logging.debug(completion_options)
-            
+
             if completion_options:
                 if completion_options.bypass_policy:
                     bypassed_prs.append(f'{pr.pull_request_id} - {pr.completion_options.bypass_reason} - {pr.closed_date}')
@@ -203,8 +225,5 @@ if __name__ == "__main__":
     logging.info(f'Found {len(bypassed_prs)} PRs.')
     for pr in bypassed_prs:
         logging.info(pr)
-
-            
-    
 
     logging.info('by @f1r3f0x - https://github.com/F1r3f0x\n')
