@@ -226,7 +226,12 @@ if __name__ == '__main__':
         csv_writer.writerow(('Id', 'Reason', 'Closed Date', 'Reviewers'))
 
         for pr in bypassed_prs:
-            row = [str(pr.pull_request_id), pr.completion_options.bypass_reason, str(pr.closed_date), str([x.display_name for x in pr.reviewers if x.vote == 10])]
+            row = [
+                str(pr.pull_request_id),
+                pr.completion_options.bypass_reason,
+                str(pr.closed_date),
+                str([x.display_name for x in pr.reviewers if x.vote == 10])  # 10 == approved
+            ]
             logging.info(' - '.join(row))
             csv_writer.writerow(row)
 
