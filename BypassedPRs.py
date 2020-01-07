@@ -17,6 +17,7 @@ from azure.devops.connection import Connection
 # Other
 from tqdm import tqdm
 import argparse
+import csv
 
 # Standard library
 import logging
@@ -67,7 +68,7 @@ def setup_logging(logfile_name: str, debug=False) -> None:
         )
     )
     console_logger.setLevel(logging.INFO)
-    
+
     root_logger.addHandler(console_logger)
     logging.info('Azure DevOps Bypassed PRs by @f1r3f0x.')
 
@@ -214,16 +215,19 @@ if __name__ == '__main__':
         pr: AZModels.GitPullRequest
 
         for pr in pull_requests:
-            completion_options: AZModels.GitPullRequestCompletionOptions
-            completion_options = pr.completion_options
-            logging.debug(completion_options)
-
-            if completion_options:
-                if completion_options.bypass_policy:
-                    bypassed_prs.append(f'{pr.pull_request_id} - {pr.completion_options.bypass_reason} - {pr.closed_date}')
+            if pr.completion_options:
+                if pr.completion_options.bypass_policy:
+                    bypassed_prs.append(pr)
 
     logging.info(f'Found {len(bypassed_prs)} PRs.')
-    for pr in bypassed_prs:
-        logging.info(pr)
+
+    with open('bypassedPRs.csv', 'w+', encoding='utf-8', newline='') as csv_fp:
+        csv_writer = csv.writer(csv_fp, delimiter=';', quotechar='"', quoting=csv.QUOTE_ALL)
+        csv_writer.writerow(('Id', 'Reason', 'Closed Date', 'Reviewers'))
+
+        for pr in bypassed_prs:
+            row = [str(pr.pull_request_id), pr.completion_options.bypass_reason, str(pr.closed_date), str([x.display_name for x in pr.reviewers if x.vote == 10])]
+            logging.info(' - '.join(row))
+            csv_writer.writerow(row)
 
     logging.info('by @f1r3f0x - https://github.com/F1r3f0x\n')

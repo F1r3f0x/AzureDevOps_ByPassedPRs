@@ -4,5 +4,6 @@ __pycache__
 build
 dist
 pyenv
-my_config.json
 bypassedPRs.log
+debug_config.json
+bypassedPRs.csv
