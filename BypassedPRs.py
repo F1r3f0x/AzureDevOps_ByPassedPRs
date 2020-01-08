@@ -16,6 +16,7 @@ from azure.devops.connection import Connection
 
 # Other
 from tqdm import tqdm
+from datetime import datetime
 import argparse
 import csv
 
@@ -224,14 +225,17 @@ if __name__ == '__main__':
 
     with open('bypassedPRs.csv', 'w+', encoding=args.encoding, newline='') as csv_fp:
         csv_writer = csv.writer(csv_fp, delimiter=';', quotechar='"', quoting=csv.QUOTE_ALL)
-        csv_writer.writerow(('Id', 'Reason', 'Closed Date', 'Reviewers'))
+        csv_writer.writerow(('Id', 'Title', 'Reason', 'Closed Date', 'Closed Time', 'Reviewers'))
 
         for pr in bypassed_prs:
+            closed_date: datetime = pr.closed_date
             row = [
                 str(pr.pull_request_id),
+                pr.title,
                 pr.completion_options.bypass_reason,
-                str(pr.closed_date),
-                str([x.display_name for x in pr.reviewers if x.vote == 10])  # 10 == approved
+                f'{closed_date.day}/{closed_date.month}/{closed_date.year}',
+                f'{closed_date.hour}:{closed_date.minute}:{closed_date.second}',
+                ','.join([x.display_name for x in pr.reviewers if x.vote == 10])  # 10 == approved
             ]
             logging.info(' - '.join(row))
             csv_writer.writerow(row)
