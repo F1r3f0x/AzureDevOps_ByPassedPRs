@@ -185,6 +185,7 @@ def get_repository(git_client: AZGit.GitClient, target_repo_name: str) ->  AZMod
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hackish script to get a list with bypassed PRs')
     parser.add_argument('--debug', help='debug mode', action='store_true')
+    parser.add_argument('--encoding', help='Encoding for output file, see python 3 encodings', default='utf-8')
     args = parser.parse_args()
 
     setup_logging(LOGFILE_NAME, debug=args.debug)
@@ -221,7 +222,7 @@ if __name__ == '__main__':
 
     logging.info(f'Found {len(bypassed_prs)} PRs.')
 
-    with open('bypassedPRs.csv', 'w+', encoding='utf-8', newline='') as csv_fp:
+    with open('bypassedPRs.csv', 'w+', encoding=args.encoding, newline='') as csv_fp:
         csv_writer = csv.writer(csv_fp, delimiter=';', quotechar='"', quoting=csv.QUOTE_ALL)
         csv_writer.writerow(('Id', 'Reason', 'Closed Date', 'Reviewers'))
 
